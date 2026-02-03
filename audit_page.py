@@ -1,4 +1,5 @@
 import streamlit as st
+from renal_app.airtable_api import prepare_airtable_record, push_to_airtable
 from renal_app.logic import calculate_delta, get_audit_verdict, units
 from renal_app.styles import nutrient_comparison_style
 from renal_app.wizards import show_usda_wizard, show_label_wizard
@@ -45,16 +46,23 @@ def audit_page():
         # Fetch detailed food data if not already fetched
         food_details = fetch_usda_food_details(st.session_state.get("selected_fdc_id"))
 
-        usda_nutrients = food_details["nutrients"]
-        st.session_state["COMPARISON_DATA"] = {
-            "Protein": {"usda": usda_nutrients.get("Protein", 0)},
-            "Sodium": {"usda": usda_nutrients.get("Sodium", 0)},
-            "Potassium": {"usda": usda_nutrients.get("Potassium", 0)},
-            "Sugar": {"usda": usda_nutrients.get("Sugar", 0)},
-            "Calories": {"usda": usda_nutrients.get("Calories", 0)},
-            "Total Fat": {"usda": usda_nutrients.get("Total Fat", 0)},
-            "Fiber": {"usda": usda_nutrients.get("Fiber", 0)},
-        }
+    # 1. Initialize the structure ONLY if it doesn't exist
+        if "COMPARISON_DATA" not in st.session_state:
+            st.session_state["COMPARISON_DATA"] = {
+                "Protein": {"usda": 0.0, "label": 0.0},
+                "Sodium": {"usda": 0.0, "label": 0.0},
+                "Potassium": {"usda": 0.0, "label": 0.0},
+                "Sugar": {"usda": 0.0, "label": 0.0},
+                "Calories": {"usda": 0.0, "label": 0.0},
+                "Total Fat": {"usda": 0.0, "label": 0.0},
+                "Fiber": {"usda": 0.0, "label": 0.0},
+            }
+
+        # 2. Update USDA values (Do NOT use = { ... })
+        usda_vals = food_details.get("nutrients", {})
+        for n in st.session_state["COMPARISON_DATA"]:
+            # We reach inside the dictionary to change just the 'usda' part
+            st.session_state["COMPARISON_DATA"][n]["usda"] = usda_vals.get(n, 0.0)
 
         # Get audit verdict
         verdict, color = get_audit_verdict(st.session_state.get("COMPARISON_DATA", {}))
@@ -127,3 +135,16 @@ def audit_page():
         st.subheader("All Ingredients", anchor=False)
         ingredients = food_details.get("ingredients", "Not Available")
         st.caption(ingredients)
+
+        # Display a preview of exactly what is going to Airtable
+        final_payload = prepare_airtable_record(food_details)
+        
+        if st.button("🚀 Log to Airtable"):
+            with st.spinner("Sending data..."):
+                success = push_to_airtable(final_payload)
+                
+                if success:
+                    st.success("Successfully added to Audit Base!")
+                    st.balloons()
+                else:
+                    st.error("Failed to send data. Please try again.")

@@ -80,7 +80,6 @@ def nutrient_comparison_style(values, delta_color, delta_percent, nutrient, unit
     <div style="display: grid; grid-template-columns: 1fr 100px 1fr; gap: 0.1rem; align-items: center; justify-content: center; margin-bottom: 0.5rem; padding: 0.25rem; min-height: 50px;">
         <div style="text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
             <div style="font-size: 1.2rem; font-weight: bold; line-height: 1.2;">{values['usda']:.1f}</div>
-            <div style="font-size: 0.75rem; color: {delta_color}; font-weight: bold; line-height: 1.2; margin-top: 2px;">{delta_percent:+.1f}%</div>
         </div>
         <div style="text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100px;">
             <div style="font-weight: bold; font-size: 0.9rem; line-height: 1.2;">{nutrient}</div>
@@ -88,6 +87,7 @@ def nutrient_comparison_style(values, delta_color, delta_percent, nutrient, unit
         </div>
         <div style="text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
             <div style="font-size: 1.2rem; font-weight: bold; line-height: 1.2;">{values['label']:.1f}</div>
+            <div style="font-size: 0.75rem; color: {delta_color}; font-weight: bold; line-height: 1.2; margin-top: 2px;">{delta_percent:+.1f}%</div>
         </div>
     </div>
     """

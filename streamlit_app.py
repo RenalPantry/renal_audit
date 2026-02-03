@@ -1,7 +1,7 @@
 import streamlit as st
 from renal_app.styles import apply_custom_styles
-from pages.home_page import home_page
-from pages.audit_page import audit_page
+from home_page import home_page
+from audit_page import audit_page
 
 def main():
     """Main application logic"""

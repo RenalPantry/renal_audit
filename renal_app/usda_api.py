@@ -185,5 +185,8 @@ def fetch_usda_food_details(fdc_id):
         "serving_size": serving_size,
         "serving_size_unit": food.get("servingSizeUnit", "g"),
         "nutrients": nutrients,
-        "ingredients": food.get("ingredients", "N/A")
+        "ingredients": food.get("ingredients", "N/A"),
+        "brand_name": (food.get('brandName') or food.get('brandOwner') or 'Generic').title(),
+        "product_description": clean_usda_label(food.get("description", "")),
+        "FDC_ID": fdc_id
     }
