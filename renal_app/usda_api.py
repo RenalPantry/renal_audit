@@ -28,6 +28,22 @@ def search_usda_foods(query, page_size=100):
     except requests.RequestException as e:
         return {"error": str(e)}
     
+def sort_results_by_relevance(foods, query):
+    query = query.lower()
+    for item in foods:
+        description = item.get("description", "").lower()
+        # Fallback to brandOwner if brandName is missing
+        brand = (item.get("brandName") or item.get("brandOwner") or "").lower()
+        
+        # token_sort_ratio handles word order (e.g., "Yogurt Chobani" matches "Chobani Yogurt")
+        desc_score = fuzz.token_sort_ratio(query, description)
+        brand_score = fuzz.token_sort_ratio(query, brand) if brand else 0
+        
+        # Weighted average: Description is usually more unique than brand
+        item["relevance_score"] = (desc_score * 0.5) + (brand_score * 0.5)
+    
+    # Sort descending (highest score first)
+    return sorted(foods, key=lambda x: x["relevance_score"], reverse=True)
 
 def clean_usda_label(text):
     if not text:
@@ -36,23 +52,6 @@ def clean_usda_label(text):
     clean_text = text.split(',')[0]
     # 2. Convert to Title Case (converts "GREEK YOGURT" to "Greek Yogurt")
     return clean_text.strip().title()
-
-def usda_manual_entry_wizard():
-    search_query = st.text_input("Enter product name (e.g., 'Greek Yogurt Liberte')", key="usda_search_input")
-
-    if search_query:
-
-        # 1. Fetch data from USDA
-        results = search_usda_foods(search_query)
-
-        if "error" in results:
-            st.error(f"Error: {results['error']}")
-        else:
-            foods = results.get('foods', [])
-            
-            # 2. Display and handle selection
-            display_and_select_usda_results(foods, search_query, radio_key="manual_entry_usda_radio")
-
 
 def display_and_select_usda_results(foods, search_query, radio_key="usda_product_radio"):
     """
@@ -128,20 +127,63 @@ def display_and_select_usda_results(foods, search_query, radio_key="usda_product
     
     return False
 
+def usda_manual_entry_wizard():
+    search_query = st.text_input("Enter product name (e.g., 'Greek Yogurt Liberte')", key="usda_search_input")
 
-def sort_results_by_relevance(foods, query):
-    query = query.lower()
-    for item in foods:
-        description = item.get("description", "").lower()
-        # Fallback to brandOwner if brandName is missing
-        brand = (item.get("brandName") or item.get("brandOwner") or "").lower()
-        
-        # token_sort_ratio handles word order (e.g., "Yogurt Chobani" matches "Chobani Yogurt")
-        desc_score = fuzz.token_sort_ratio(query, description)
-        brand_score = fuzz.token_sort_ratio(query, brand) if brand else 0
-        
-        # Weighted average: Description is usually more unique than brand
-        item["relevance_score"] = (desc_score * 0.5) + (brand_score * 0.5)
+    if search_query:
+
+        # 1. Fetch data from USDA
+        results = search_usda_foods(search_query)
+
+        if "error" in results:
+            st.error(f"Error: {results['error']}")
+        else:
+            foods = results.get('foods', [])
+            
+            # 2. Display and handle selection
+            display_and_select_usda_results(foods, search_query, radio_key="manual_entry_usda_radio")
+
+def fetch_usda_food_details(fdc_id):
+    results = search_usda_foods(fdc_id, page_size=1)
+    foods = results.get('foods', [])
     
-    # Sort descending (highest score first)
-    return sorted(foods, key=lambda x: x["relevance_score"], reverse=True)
+    if not foods:
+        return {"error": "Food item not found."}
+        
+    food = foods[0]
+    nutrients = {}
+
+    # 1. Get the Serving Size (e.g., 30 for a 30g serving)
+    # Most USDA Branded data is per 100g/ml
+    serving_size = food.get("servingSize", 100) 
+    # Calculate the ratio (e.g., 30/100 = 0.3)
+    ratio = serving_size / 100
+
+    # 2. Nutrient ID Map (Reliable IDs)
+    id_map = {
+        1003: "Protein",
+        1093: "Sodium",
+        1092: "Potassium",
+        2000: "Sugar",
+        1008: "Calories",
+        1004: "Total Fat",
+        1079: "Fiber"
+    }
+
+    for n in food.get("foodNutrients", []):
+        n_id = n.get("nutrientId")
+        if n_id in id_map:
+            clean_name = id_map[n_id]
+            raw_value = n.get("value", 0)
+            
+            # 3. SCALE THE VALUE
+            # If USDA says 10g Protein per 100g, and serving is 30g, 
+            # we save 3g (10 * 0.3)
+            nutrients[clean_name] = round(raw_value * ratio, 2)
+
+    return {
+        "serving_size": serving_size,
+        "serving_size_unit": food.get("servingSizeUnit", "g"),
+        "nutrients": nutrients,
+        "ingredients": food.get("ingredients", "N/A")
+    }
