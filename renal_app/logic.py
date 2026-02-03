@@ -22,7 +22,8 @@ def get_audit_verdict(data):
     """Determine audit verdict based on data discrepancies"""
     critical_nutrients = ["Sugar", "Sodium"]
     for nutrient in critical_nutrients:
-        delta = calculate_delta(data[nutrient]["label"], data[nutrient]["usda"])
+        nutrient_data = data.get(nutrient, {"label": 0, "usda": 0})
+        delta = calculate_delta(nutrient_data.get("label", 0), nutrient_data.get("usda", 0))
         if delta > 10:  # More than 10% increase is an alert
             return "Alert", "red"
     return "Verified", "green"
