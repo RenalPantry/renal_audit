@@ -49,9 +49,10 @@ def clean_usda_label(text):
     if not text:
         return ""
     # 1. Take only the part before the first comma
-    clean_text = text.split(',')[0]
+    # clean_text = text.split(',')[0]
+    clean_text = text.strip().title()
     # 2. Convert to Title Case (converts "GREEK YOGURT" to "Greek Yogurt")
-    return clean_text.strip().title()
+    return clean_text
 
 def display_and_select_usda_results(foods, search_query, radio_key="usda_product_radio"):
     """
