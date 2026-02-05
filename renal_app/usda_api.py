@@ -165,6 +165,7 @@ def fetch_usda_food_details(fdc_id):
         1003: "Protein",
         1093: "Sodium",
         1092: "Potassium",
+        1091: "Phosphorus",
         2000: "Sugar",
         1008: "Calories",
         1004: "Total Fat",

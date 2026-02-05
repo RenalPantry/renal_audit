@@ -22,13 +22,14 @@ def prepare_airtable_record(usda_data):
         # Spread the nutrient data into the main dictionary
         "USDA Serving Size": usda_data.get("serving_size", ""),
         "USDA Serving Unit": usda_data.get("serving_size_unit", ""),
-        "USDA Protein (g)": nutrient.get("Protein", 0),
-        "USDA Sodium (mg)": nutrient.get("Sodium", 0),
-        "USDA Potassium (mg)": nutrient.get("Potassium", 0),
-        "USDA Sugar (g)": nutrient.get("Sugar", 0),
-        "USDA Calories (kcal)": nutrient.get("Calories", 0),
-        "USDA Total Fat (g)": nutrient.get("Total Fat", 0),
-        "USDA Fiber (g)": nutrient.get("Fiber", 0),
+        "USDA Protein (g)": nutrient.get("Protein", None),
+        "USDA Sodium (mg)": nutrient.get("Sodium", None),
+        "USDA Potassium (mg)": nutrient.get("Potassium", None),
+        "USDA Phosphorus (mg)": nutrient.get("Phosphorus", None),
+        "USDA Sugar (g)": nutrient.get("Sugar", None),
+        "USDA Calories (kcal)": nutrient.get("Calories", None),
+        "USDA Total Fat (g)": nutrient.get("Total Fat", None),
+        "USDA Fiber (g)": nutrient.get("Fiber", None),
     }
     return record
 

@@ -12,16 +12,16 @@ def audit_page():
     # The "Buttons" - This stays horizontal on mobile
     choice = st.segmented_control(
         label="Start Wizard", 
-        options=["🔍 USDA Data*", "📸 Label Data"], 
+        options=["📸 Label Data*", "🔍 USDA Data"], 
         selection_mode="single",
         key="wizard_choice",
         width="stretch"
     )
 
     # Update the state based on selection
-    if choice == "🔍 USDA Data*":
+    if choice == "🔍 USDA Data":
         st.session_state.wizard = "usda"
-    elif choice == "📸 Label Data":
+    elif choice == "📸 Label Data*":
         st.session_state.wizard = "label"
 
     # Check which wizard was triggered
@@ -31,9 +31,28 @@ def audit_page():
     elif wizard == "label":
         show_label_wizard()
 
+    # Initialize the structure ONLY if it doesn't exist
+    if "COMPARISON_DATA" not in st.session_state:
+        st.session_state["COMPARISON_DATA"] = {
+            "Protein": {"usda": None, "label": None},
+            "Sodium": {"usda": None, "label": None},
+            "Potassium": {"usda": None, "label": None},
+            "Phosphorus": {"usda": None, "label": None},
+            "Sugar": {"usda": None, "label": None},
+            "Calories": {"usda": None, "label": None},
+            "Total Fat": {"usda": None, "label": None},
+            "Fiber": {"usda": None, "label": None},
+        }
+
     food_details = st.session_state.get("current_food_details", None)
 
-    if "selected_food_name" not in st.session_state:
+    if "label_info" in st.session_state:
+        label_vals = st.session_state.get("label_info", {})
+        for n in st.session_state["COMPARISON_DATA"]:
+        # We reach inside the dictionary to change just the 'usda' part
+            st.session_state["COMPARISON_DATA"][n]["label"] = label_vals.get(n)
+
+    if "label_info" not in st.session_state:
             st.markdown(
             f"""
             <div style="background-color: #2C7A7B; padding: 10px; border-radius: 8px; text-align: center;">
@@ -46,23 +65,11 @@ def audit_page():
         # Fetch detailed food data if not already fetched
         food_details = fetch_usda_food_details(st.session_state.get("selected_fdc_id"))
 
-    # 1. Initialize the structure ONLY if it doesn't exist
-        if "COMPARISON_DATA" not in st.session_state:
-            st.session_state["COMPARISON_DATA"] = {
-                "Protein": {"usda": 0.0, "label": 0.0},
-                "Sodium": {"usda": 0.0, "label": 0.0},
-                "Potassium": {"usda": 0.0, "label": 0.0},
-                "Sugar": {"usda": 0.0, "label": 0.0},
-                "Calories": {"usda": 0.0, "label": 0.0},
-                "Total Fat": {"usda": 0.0, "label": 0.0},
-                "Fiber": {"usda": 0.0, "label": 0.0},
-            }
-
-        # 2. Update USDA values (Do NOT use = { ... })
+        # Update USDA values (Do NOT use = { ... })
         usda_vals = food_details.get("nutrients", {})
         for n in st.session_state["COMPARISON_DATA"]:
             # We reach inside the dictionary to change just the 'usda' part
-            st.session_state["COMPARISON_DATA"][n]["usda"] = usda_vals.get(n, 0.0)
+            st.session_state["COMPARISON_DATA"][n]["usda"] = usda_vals.get(n)
 
         # Get audit verdict
         verdict, color = get_audit_verdict(st.session_state.get("COMPARISON_DATA", {}))
@@ -105,7 +112,7 @@ def audit_page():
         st.divider()
 
         # Update the grid to include additional nutrients: Calories, Total Fat, and Fiber
-        nutrients_to_display = ["Protein", "Sodium", "Potassium", "Sugar", "Calories", "Total Fat", "Fiber"]
+        nutrients_to_display = ["Protein", "Sodium", "Potassium", "Phosphorus", "Sugar", "Calories", "Total Fat", "Fiber"]
         # Update column titles to match the table's background color
         st.markdown("""
         <div style="display: grid; grid-template-columns: 1fr 100px 1fr; gap: 0.1rem; align-items: center; justify-content: center; margin-bottom: 0.5rem; padding: 0.25rem; min-height: 50px; background-color: #0e1117; color: white; font-weight: bold;">
@@ -118,12 +125,15 @@ def audit_page():
 
         for nutrient in nutrients_to_display:
             # Ensure values have the required structure
-            values = st.session_state.get("COMPARISON_DATA", {}).get(nutrient, {"label": 0, "usda": 0})
-            label_value = values.get("label", 0)
-            usda_value = values.get("usda", 0)
+            values = st.session_state.get("COMPARISON_DATA", {}).get(nutrient, {"label": None, "usda": None})
+            label_value = values.get("label")
+            usda_value = values.get("usda")
 
             delta_percent = calculate_delta(label_value, usda_value)
-            delta_color = "#ff4b4b" if delta_percent > 0 else "#00cc66"
+            if delta_percent is None:
+                delta_color = "#666"
+            else:
+                delta_color = "#ff4b4b" if delta_percent > 0 else "#00cc66"
             unit = units.get(nutrient, "")
 
             # Pass validated values to nutrient_comparison_style
@@ -139,12 +149,12 @@ def audit_page():
         # Display a preview of exactly what is going to Airtable
         final_payload = prepare_airtable_record(food_details)
         
-        if st.button("🚀 Log to Airtable"):
+        if st.button("🚀 Send to Audit Database"):
             with st.spinner("Sending data..."):
                 success = push_to_airtable(final_payload)
                 
                 if success:
-                    st.success("Successfully added to Audit Base!")
+                    st.success("Successfully added to Audit Database!")
                     st.balloons()
                 else:
                     st.error("Failed to send data. Please try again.")
