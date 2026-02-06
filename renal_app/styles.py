@@ -74,14 +74,11 @@ def apply_custom_styles():
 
     st.markdown("""
         <style>
-            #MainMenu {visibility: hidden;}
-            footer {visibility: hidden;}
-            .stDeployButton {display:none;}
-            header {visibility: hidden;}
+            footer {visibility: hidden !important;}
         </style>
         """, unsafe_allow_html=True
     )
-    
+
 
 def nutrient_comparison_style(values, delta_color, delta_percent, nutrient, unit):
     """
@@ -98,7 +95,7 @@ def nutrient_comparison_style(values, delta_color, delta_percent, nutrient, unit
         return f"{value:+.1f}%"
 
     return f"""
-    <div style="display: grid; grid-template-columns: 1fr 100px 1fr; gap: 0.1rem; align-items: center; justify-content: center; margin-bottom: 0.5rem; padding: 0.25rem; min-height: 50px;">
+    <div style="display: grid; grid-template-columns: 1fr 100px 1fr; gap: 0.1rem; align-items: center; justify-content: center; margin-bottom: 0.5rem; padding: 0rem; min-height: 50px;">
         <div style="text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
             <div style="font-size: 1.2rem; font-weight: bold; line-height: 1.2;">{format_value(values['label'])}</div>
             <div style="font-size: 0.75rem; color: {delta_color}; font-weight: bold; line-height: 1.2; margin-top: 2px;">{format_delta(delta_percent)}</div>

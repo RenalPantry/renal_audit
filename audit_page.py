@@ -5,13 +5,24 @@ from renal_app.styles import nutrient_comparison_style
 from renal_app.wizards import show_usda_wizard, show_label_wizard
 from renal_app.usda_api import fetch_usda_food_details
 
-def reset_pantry_data():
+def reset_label_data():
+    if "label_vals" in st.session_state:
+        del st.session_state["label_vals"] # Key is GONE. 'if' will now be False.
+    if "COMPARISON_DATA" in st.session_state:
+        del st.session_state["COMPARISON_DATA"] # Clear the entire comparison data to reset both label and usda values
+    
+    st.rerun()  
+
+def reset_usda_data():
     if "usda_vals" in st.session_state:
         del st.session_state["usda_vals"] # Key is GONE. 'if' will now be False.
-    
-    if "label_vals" in st.session_state:
-        del st.session_state["label_vals"]
-        
+    if "selected_fdc_id" in st.session_state:
+        del st.session_state["selected_fdc_id"]
+    if "selected_food_name" in st.session_state:
+        del st.session_state["selected_food_name"]
+    if "COMPARISON_DATA" in st.session_state:
+        del st.session_state["COMPARISON_DATA"] # Clear the entire comparison data to reset both label and usda values
+
     st.rerun()
 
 def audit_page():
@@ -97,28 +108,31 @@ def audit_page():
             st.success("✅ This item appears safe based on your current limits.")
 
         # Display selected product info if available
-        if "selected_food_name" in st.session_state:
-            product_name = st.session_state.get('selected_food_name', 'Unknown')
-        else:
-            product_name = (f"{label_vals.get('Brand', '')} {label_vals.get('Product Name', '')}").strip() or "Unknown Product"
-        
         if "label_vals" in st.session_state:
-            serving = label_vals.get('Serving Size', 'Serving Size Not Provided, Data Not Comparable')
-            unit = label_vals.get('Serving Unit', '')
+            source = "Label"
+            product_name = (f"{label_vals.get('Brand', '')} {label_vals.get('Product Name', '')}").strip() or "Unknown Product"
+            serving = label_vals.get('Serving Size')
+            if serving is None:
+                serving = "Serving size not provided, comparing with 100g USDA values"
+                source = "USDA"
+            unit = label_vals.get('Serving Unit')           
         else:
+            source = "USDA"
+            product_name = st.session_state.get('selected_food_name', 'Unknown')
             serving = 100
-            unit = usda_vals.get('Serving Unit', 'g')
+            unit = usda_vals.get('Serving Unit')
+            if unit is None:
+                unit = "g"
 
-        st.markdown(f"**Product:** {product_name}")
-        st.markdown(f"**Serving Size:** {serving} {unit}")
-
-        st.divider()
+        st.subheader(f"**Product:** {product_name}")
+        st.info(f"**Serving Size:** {serving} {unit}")
+        st.caption(f"Source: {source}")
 
         # Update the grid to include additional nutrients: Calories, Total Fat, and Fiber
         nutrients_to_display = ["Protein", "Sodium", "Potassium", "Phosphorus", "Sugar", "Calories", "Total Fat", "Fiber"]
         # Update column titles to match the table's background color
         st.markdown("""
-        <div style="display: grid; grid-template-columns: 1fr 100px 1fr; gap: 0.1rem; align-items: center; justify-content: center; margin-bottom: 0.5rem; padding: 0.25rem; min-height: 50px; background-color: #0e1117; color: white; font-weight: bold;">
+        <div style="display: grid; grid-template-columns: 1fr 100px 1fr; gap: 0.1rem; align-items: center; justify-content: center; margin-bottom: 0.5rem; padding: 0.25rem; min-height: 50px; background-color: #0e1117; color: white; font-weight: bold; border-bottom: 2px solid #31333F;">
         <div style="text-align: center;">Label</div>
         <div style="text-align: center;">Nutrient</div>
         <div style="text-align: center;">USDA</div>
@@ -142,6 +156,18 @@ def audit_page():
             # Pass validated values to nutrient_comparison_style
             st.markdown(nutrient_comparison_style({"label": label_value, "usda": usda_value}, delta_color, delta_percent, nutrient, unit), unsafe_allow_html=True)
 
+        st.markdown("")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            if st.button("Clear Label Data", use_container_width=True):
+                reset_label_data()
+
+        with col2:
+            if st.button("Clear USDA Data", use_container_width=True):
+                reset_usda_data()
+
         st.divider()
 
         # Add a section at the bottom for all ingredients
@@ -151,9 +177,7 @@ def audit_page():
 
         # Display a preview of exactly what is going to Airtable
         final_payload = prepare_airtable_record(food_details)
-        
-        if st.button("Reset Pantry Data"):
-            reset_pantry_data()
+
 
         if st.button("🚀 Send to Audit Database"):
             with st.spinner("Sending data..."):

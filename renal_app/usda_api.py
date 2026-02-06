@@ -5,6 +5,27 @@ from rapidfuzz import fuzz
 USDA_API_KEY = st.secrets.get("USDA_API_KEY")
 USDA_SEARCH_URL = "https://api.nal.usda.gov/fdc/v1/foods/search"
 
+def to_float(val):
+    """
+    Safely converts any input (String, None, Int) to a Float.
+    Returns 0.0 if the input is invalid or missing.
+    """
+    # 1. Handle None or empty values immediately
+    if val is None or str(val).strip() == "" or str(val).lower() == "null":
+        return 0.0
+    
+    try:
+        # 2. Clean the string (remove commas or spaces just in case)
+        if isinstance(val, str):
+            val = val.replace(",", "").strip()
+            
+        # 3. Perform the conversion
+        return float(val)
+        
+    except (ValueError, TypeError):
+        # 4. If someone types "N/A" or "Unknown", return 0.0 instead of crashing
+        return 0.0
+
 def search_usda_foods(query, page_size=100):
     """
     Search the USDA FoodData Central database for foods matching the query.
@@ -161,7 +182,7 @@ def fetch_usda_food_details(fdc_id):
     serving_unit = food.get("servingSizeUnit", "g")
     
     if "label_vals" in st.session_state:
-        ratio = float(st.session_state["label_vals"].get("Serving Size", 100)) / 100
+        ratio = to_float(st.session_state["label_vals"].get("Serving Size", 100)) / 100
     else:
         ratio = 1.0
 
