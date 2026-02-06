@@ -152,43 +152,41 @@ def fetch_usda_food_details(fdc_id):
         return {"error": "Food item not found."}
         
     food = foods[0]
-    nutrients = {}
+    
+    # 1. Capture Identity and Serving Info
+    # USDA often uses 'description' for the product name
+    product_name = food.get("description", "Unknown Product")
+    brand = food.get("brandName", "Generic")
+    serving_size = 100
+    serving_unit = food.get("servingSizeUnit", "g")
+    
+    if "label_vals" in st.session_state:
+        ratio = float(st.session_state["label_vals"].get("Serving Size", 100)) / 100
+    else:
+        ratio = 1.0
 
-    # 1. Get the Serving Size (e.g., 30 for a 30g serving)
-    # Most USDA Branded data is per 100g/ml
-    serving_size = food.get("servingSize", 100) 
-    # Calculate the ratio (e.g., 30/100 = 0.3)
-    ratio = serving_size / 100
-
-    # 2. Nutrient ID Map (Reliable IDs)
+    # 2. Nutrient Mapping (Your existing logic)
     id_map = {
-        1003: "Protein",
-        1093: "Sodium",
-        1092: "Potassium",
-        1091: "Phosphorus",
-        2000: "Sugar",
-        1008: "Calories",
-        1004: "Total Fat",
-        1079: "Fiber"
+        1003: "Protein", 1093: "Sodium", 1092: "Potassium",
+        1091: "Phosphorus", 2000: "Sugar", 1008: "Calories",
+        1004: "Total Fat", 1079: "Fiber"
     }
 
+    nutrients = {}
     for n in food.get("foodNutrients", []):
         n_id = n.get("nutrientId")
         if n_id in id_map:
             clean_name = id_map[n_id]
             raw_value = n.get("value", 0)
-            
-            # 3. SCALE THE VALUE
-            # If USDA says 10g Protein per 100g, and serving is 30g, 
-            # we save 3g (10 * 0.3)
             nutrients[clean_name] = round(raw_value * ratio, 2)
 
-    return {
-        "serving_size": serving_size,
-        "serving_size_unit": food.get("servingSizeUnit", "g"),
-        "nutrients": nutrients,
-        "ingredients": food.get("ingredients", "N/A"),
-        "brand_name": (food.get('brandName') or food.get('brandOwner') or 'Generic').title(),
-        "product_description": clean_usda_label(food.get("description", "")),
-        "FDC_ID": fdc_id
+    # 3. COMBINE EVERYTHING into usda_vals
+    # This creates a single "Source of Truth" for this search
+    st.session_state['usda_info'] = {
+        "Product Name": product_name,
+        "Brand": brand,
+        "Serving Size": serving_size,
+        "Serving Unit": serving_unit,
+        "nutrients": nutrients # Nesting the nutrients keeps it organized
     }
+    return st.session_state['usda_info']

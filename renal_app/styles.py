@@ -72,6 +72,17 @@ def apply_custom_styles():
         unsafe_allow_html=True
     )
 
+    st.markdown("""
+        <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            .stDeployButton {display:none;}
+            header {visibility: hidden;}
+        </style>
+        """, unsafe_allow_html=True
+    )
+    
+
 def nutrient_comparison_style(values, delta_color, delta_percent, nutrient, unit):
     """
     Generate the HTML style for nutrient comparison.
