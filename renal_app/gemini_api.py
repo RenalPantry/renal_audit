@@ -35,6 +35,7 @@ def extract_label_info_from_ocr(ocr_text):
     4. For 'Ingredients', extract the full comma-separated list.
     5. Clean up OCR typos (e.g., 'S0dium' -> 'Sodium').
     6. Get serving size in g or mL if possible.
+    7. Capitalize the first letter only for Product Name and Brand.
 
     OCR TEXT:
     {ocr_text}

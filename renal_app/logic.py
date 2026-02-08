@@ -129,7 +129,7 @@ def get_audit_details(data):
 
         if limit and u_val > limit:
             excess = u_val - limit
-            report["flags"].append(f"⚠️ USDA{nutrient}: {u_val}{units.get(nutrient, '')} exceeds safe limit of {limit}{units.get(nutrient, '')} (+{excess}{units.get(nutrient, '')})")
+            report["flags"].append(f"⚠️ USDA {nutrient}: {u_val}{units.get(nutrient, '')} exceeds safe limit of {limit}{units.get(nutrient, '')} (+{excess}{units.get(nutrient, '')})")
             report["status"] = "High Renal Load"
             report["color"] = "red"
 
