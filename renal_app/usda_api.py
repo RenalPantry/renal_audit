@@ -26,6 +26,7 @@ def to_float(val):
         # 4. If someone types "N/A" or "Unknown", return 0.0 instead of crashing
         return 0.0
 
+@st.cache_data(show_spinner=False)
 def search_usda_foods(query, page_size=100):
     """
     Search the USDA FoodData Central database for foods matching the query.
@@ -165,49 +166,45 @@ def usda_manual_entry_wizard():
             # 2. Display and handle selection
             display_and_select_usda_results(foods, search_query, radio_key="manual_entry_usda_radio")
 
-def fetch_usda_food_details(fdc_id):
-    results = search_usda_foods(fdc_id, page_size=1)
-    foods = results.get('foods', [])
-    
-    if not foods:
-        return {"error": "Food item not found."}
-        
-    food = foods[0]
-    
-    # 1. Capture Identity and Serving Info
+def _build_food_details(food, label_serving_size=None):
     # USDA often uses 'description' for the product name
     product_name = food.get("description", "Unknown Product")
     brand = food.get("brandName", "Generic")
-    serving_size = 100
+    serving_size = label_serving_size if label_serving_size is not None else 100
     serving_unit = food.get("servingSizeUnit", "g")
-    
-    if "label_vals" in st.session_state:
-        ratio = to_float(st.session_state["label_vals"].get("Serving Size", 100)) / 100
-    else:
-        ratio = 1.0
+    ingredients = food.get("ingredients", "Not Available")
 
-    # 2. Nutrient Mapping (Your existing logic)
+    ratio = to_float(serving_size) / 100 if serving_size else 1.0
+
     id_map = {
         1003: "Protein", 1093: "Sodium", 1092: "Potassium",
-        1091: "Phosphorus", 2000: "Sugar", 1008: "Calories",
-        1004: "Total Fat", 1079: "Fiber"
+        1091: "Phosphorus", 2000: "Sugar", 1258: "Saturated Fat",
+        1257: "Trans Fat", 1008: "Calories",
     }
 
     nutrients = {}
-    for n in food.get("foodNutrients", []):
-        n_id = n.get("nutrientId")
-        if n_id in id_map:
-            clean_name = id_map[n_id]
-            raw_value = n.get("value", 0)
+    for nutrient in food.get("foodNutrients", []):
+        nutrient_id = nutrient.get("nutrientId")
+        if nutrient_id in id_map:
+            clean_name = id_map[nutrient_id]
+            raw_value = nutrient.get("value", 0)
             nutrients[clean_name] = round(raw_value * ratio, 2)
 
-    # 3. COMBINE EVERYTHING into usda_vals
-    # This creates a single "Source of Truth" for this search
-    st.session_state['usda_info'] = {
+    return {
         "Product Name": product_name,
         "Brand": brand,
         "Serving Size": serving_size,
         "Serving Unit": serving_unit,
-        "nutrients": nutrients # Nesting the nutrients keeps it organized
+        "nutrients": nutrients,
+        "Ingredients": ingredients,
     }
-    return st.session_state['usda_info']
+
+
+def fetch_usda_food_details(fdc_id, label_serving_size=None):
+    results = search_usda_foods(fdc_id, page_size=1)
+    foods = results.get("foods", [])
+
+    if not foods:
+        return {"error": "Food item not found."}
+
+    return _build_food_details(foods[0], label_serving_size=label_serving_size)

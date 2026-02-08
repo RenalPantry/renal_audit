@@ -4,6 +4,7 @@ import streamlit as st
 
 OCR_API_KEY = st.secrets.get("OCR_API_KEY")
 
+@st.cache_data(show_spinner=False)
 def perform_ocr(image_bytes):
     """
     Sends image bytes to OCR Space API and returns the detected text.
@@ -23,7 +24,7 @@ def perform_ocr(image_bytes):
         "screenshot": ("image.jpg", image_bytes, "image/jpeg")
     }
     
-    response = requests.post(url, data=payload, files=files)
+    response = requests.post(url, data=payload, files=files, timeout=20)
     result = response.json()
     
     if result.get("OCRExitCode") == 1:

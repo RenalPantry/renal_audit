@@ -79,6 +79,17 @@ def apply_custom_styles():
         """, unsafe_allow_html=True
     )
 
+    st.markdown(
+        """
+        <style>
+        .block-container {
+            padding-top: 1rem; /* Adjust this value to reduce or increase the top space */
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
 
 def nutrient_comparison_style(values, delta_color, delta_percent, nutrient, unit):
     """

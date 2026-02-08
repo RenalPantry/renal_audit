@@ -2,7 +2,7 @@ import io
 import streamlit as st
 from PIL import Image
 from renal_app.usda_api import usda_manual_entry_wizard
-from renal_app.chatgpt_api import extract_label_info_from_image
+from renal_app.gemini_api import extract_label_info_from_ocr
 from renal_app.ocr_api import perform_ocr
 
 def reset_wizard_choice():
@@ -11,10 +11,16 @@ def reset_wizard_choice():
 def reset_wizard_label_step_navigator():
     st.session_state.label_step_navigator = None
 
-def to_float(val):
-    if val is None:
+def to_float(val, default=0.0):
+    if val is None or val == "":
+        return None  # Change default from 0.0 to None
+    try:
+        # Clean string of units if AI included them (e.g., "10g" -> "10")
+        if isinstance(val, str):
+            val = "".join(c for c in val if c.isdigit() or c == '.')
+        return float(val)
+    except (TypeError, ValueError):
         return None
-    return float(val)
 
 def prepare_photo(img_file):
     img = Image.open(img_file)
@@ -48,39 +54,34 @@ def show_label_wizard():
 
     step = st.segmented_control(
         "Label Data Entry Method",
-        options=["Auto Detect", "Manual Entry"],
+        options=["📸 Scan Label", "✍️ Manual Entry"],
         selection_mode="single",
         key="label_step_navigator",
         width="stretch"
     )
     
-    if step == "Auto Detect":
-        tab1, tab2 = st.tabs(["📸 Take Photo", "📁 Upload Image"])
+    if step == "📸 Scan Label":
         
-        with tab1:
-            captured_photo = st.camera_input("Scan Nutrition Label", key="label_camera")
-            if captured_photo:
-                compressed_photo = prepare_photo(captured_photo)
-                st.success("Photo captured! Processing...")
-                st.markdown(perform_ocr(compressed_photo))  # Show raw OCR text for debugging
-                st.session_state['label_vals'] = extract_label_info_from_image(compressed_photo)
+        uploaded_file = st.file_uploader("Choose an image", type=['jpg', 'jpeg', 'png'], key="label_upload")
+        if uploaded_file:
+            compressed_photo = prepare_photo(uploaded_file)
+            st.session_state["label_photo_bytes"] = compressed_photo
+            st.image(uploaded_file, caption="Uploaded Image", width="stretch")
+            with st.spinner("Reading label..."):
+                ocr_text = perform_ocr(compressed_photo)
+            if ocr_text.startswith("Error:"):
+                st.error(ocr_text)
+            else:
+                st.session_state['label_vals'] = extract_label_info_from_ocr(ocr_text)
 
-        with tab2:
-            uploaded_file = st.file_uploader("Choose an image", type=['jpg', 'jpeg', 'png'], key="label_upload")
-            if uploaded_file:
-                compressed_photo = prepare_photo(uploaded_file)
-                st.image(uploaded_file, caption="Uploaded Image", use_container_width=True)
-                st.markdown(perform_ocr(compressed_photo))  # Show raw OCR text for debugging
-                st.session_state['label_vals'] = extract_label_info_from_image(compressed_photo)
-
-    elif step == "Manual Entry":
+    elif step == "✍️ Manual Entry":
 
         existing_data = st.session_state.get('label_vals', {})
 
         with st.form("label_form"):
             # We ensure 'value' is explicitly a float (e.g., 5.0 instead of 5)
-            name_val = st.text_input("Product Name", value=existing_data.get("Product Name", ""))
             brand_val = st.text_input("Brand", value=existing_data.get("Brand", ""))
+            name_val = st.text_input("Product Name", value=existing_data.get("Product Name", ""))
             sz_val = st.number_input("Serving Size", value=to_float(existing_data.get("Serving Size")), min_value=0.0, step=0.1)
             su_val = st.text_input("Serving Unit", value=existing_data.get("Serving Unit", ""))
             p_val = st.number_input("Protein (g)", value=to_float(existing_data.get("Protein")), min_value=0.0, step=0.1)
@@ -88,17 +89,17 @@ def show_label_wizard():
             k_val = st.number_input("Potassium (mg)", value=to_float(existing_data.get("Potassium")), min_value=0.0, step=1.0)
             phos_val = st.number_input("Phosphorus (mg)", value=to_float(existing_data.get("Phosphorus")), min_value=0.0, step=1.0)
             sug_val = st.number_input("Sugar (g)", value=to_float(existing_data.get("Sugar")), min_value=0.0, step=0.1)
+            sat_fat_val = st.number_input("Saturated Fat (g)", value=to_float(existing_data.get("Saturated Fat")), min_value=0.0, step=0.1)
+            trans_fat_val = st.number_input("Trans Fat (g)", value=to_float(existing_data.get("Trans Fat")), min_value=0.0, step=0.1)            
             cal_val = st.number_input("Calories (kcal)", value=to_float(existing_data.get("Calories")), min_value=0.0, step=1.0)
-            fat_val = st.number_input("Total Fat (g)", value=to_float(existing_data.get("Total Fat")), min_value=0.0, step=0.1)
-            fib_val = st.number_input("Fiber (g)", value=to_float(existing_data.get("Fiber")), min_value=0.0, step=0.1)
             ingredients_val = st.text_area("Ingredients", value=existing_data.get("Ingredients", ""))
             
             submitted = st.form_submit_button("Save Label Data")
         
         if submitted:
             label_data = {
-                "Product Name": name_val,
                 "Brand": brand_val,
+                "Product Name": name_val,
                 "Serving Size": sz_val,
                 "Serving Unit": su_val,
                 "Protein": p_val,
@@ -106,9 +107,9 @@ def show_label_wizard():
                 "Potassium": k_val,
                 "Phosphorus": phos_val,
                 "Sugar": sug_val,
+                "Saturated Fat": sat_fat_val,
+                "Trans Fat": trans_fat_val,                
                 "Calories": cal_val,
-                "Total Fat": fat_val,
-                "Fiber": fib_val,
                 "Ingredients": ingredients_val
             }
             

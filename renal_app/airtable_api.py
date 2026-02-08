@@ -1,6 +1,8 @@
 import json
-from datetime import datetime, timezone
-
+import tempfile
+import os
+import io
+from pyairtable import Api
 import requests
 import streamlit as st
 
@@ -9,28 +11,73 @@ AIRTABLE_BASE_ID = st.secrets.get("AIRTABLE_BASE_ID")
 AIRTABLE_TABLE_NAME = st.secrets.get("AIRTABLE_TABLE_NAME")
 AIRTABLE_TABLE_ID = st.secrets.get("AIRTABLE_TABLE_ID")
 
-def prepare_airtable_record(usda_data):
+def prepare_airtable_record(product, brand, serving_size, unit, usda_data=None, label_data=None, image_bytes=None):
+    # Ensure we are working with dictionaries even if None is passed
+    usda = usda_data if usda_data else {}
+    label = label_data if label_data else {}
+    image = image_bytes if image_bytes else None
 
-    nutrient = usda_data.get("nutrients", {})
-
-    # This dictionary keys MUST match your Airtable Column Names exactly
+    # This dictionary will not crash because .get() returns None instead of erroring
     record = {
-        "Product": usda_data.get("product_description", ""),
-        "Brand": usda_data.get("brand_name", ""),
-        "FDC_ID": str(usda_data.get("FDC_ID", "")), # Best practice to keep the ID
-        "Ingredients": usda_data.get("ingredients", ""),
-        # Spread the nutrient data into the main dictionary
-        "USDA Serving Size": usda_data.get("serving_size", ""),
-        "USDA Serving Unit": usda_data.get("serving_size_unit", ""),
-        "USDA Protein (g)": nutrient.get("Protein", None),
-        "USDA Sodium (mg)": nutrient.get("Sodium", None),
-        "USDA Potassium (mg)": nutrient.get("Potassium", None),
-        "USDA Phosphorus (mg)": nutrient.get("Phosphorus", None),
-        "USDA Sugar (g)": nutrient.get("Sugar", None),
-        "USDA Calories (kcal)": nutrient.get("Calories", None),
-        "USDA Total Fat (g)": nutrient.get("Total Fat", None),
-        "USDA Fiber (g)": nutrient.get("Fiber", None),
+        "Product": product,
+        "Brand": brand,        
+        "Serving Size": serving_size,
+        "Serving Unit": unit,
+        "FDC_ID": str(usda.get("fdcId")),
+
+        "Label Protein (g)": label.get("Protein"),
+        "Label Sodium (mg)": label.get("Sodium"),
+        "Label Potassium (mg)": label.get("Potassium"),
+        "Label Phosphorus (mg)": label.get("Phosphorus"),
+        "Label Sugar (g)": label.get("Sugar"),
+        "Label Saturated Fat (g)": label.get("Saturated Fat"),
+        "Label Trans Fat (g)": label.get("Trans Fat"),
+        "Label Calories (kcal)": label.get("Calories"),
+        "Label Ingredients": label.get("Ingredients"),
+
+        "USDA Protein (g)": usda.get("nutrients", {}).get("Protein"),
+        "USDA Sodium (mg)": usda.get("nutrients", {}).get("Sodium"),
+        "USDA Potassium (mg)": usda.get("nutrients", {}).get("Potassium"),
+        "USDA Phosphorus (mg)": usda.get("nutrients", {}).get("Phosphorus"),
+        "USDA Sugar (g)": usda.get("nutrients", {}).get("Sugar"),
+        "USDA Saturated Fat (g)": usda.get("nutrients", {}).get("Saturated Fat"),
+        "USDA Trans Fat (g)": usda.get("nutrients", {}).get("Trans Fat"),
+        "USDA Calories (kcal)": usda.get("nutrients", {}).get("Calories"),
+        "USDA Ingredients": usda.get("Ingredients"),
+        
+        # Meta Data
+        "Audit Colour": st.session_state.get("audit_report", {}).get("color"),
+        "Audit Result": f"{st.session_state.get('audit_report', {}).get('flags', '')}{st.session_state.get('ai_report', '')}",
     }
+    
+    return record
+
+def push_to_airtable_with_attachment(payload_fields, image_bytes=None):
+    api = Api(AIRTABLE_API_KEY)
+    table = api.table(AIRTABLE_BASE_ID, AIRTABLE_TABLE_ID)
+    
+    # 1. Create the record first (Text/Numbers only)
+    record = table.create(payload_fields)
+    
+    # 2. Upload the attachment using a temporary file
+    if image_bytes:
+        # Create a temporary file that deletes itself after the 'with' block
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
+            tmp.write(image_bytes)
+            tmp_path = tmp.name  # This is the actual path on the disk
+        
+        try:
+            # Pass the PATH string to Airtable
+            table.upload_attachment(
+                record["id"], 
+                "Label Photo", 
+                tmp_path
+            )
+        finally:
+            # Clean up: remove the temp file from the server disk
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+    
     return record
 
 def push_to_airtable(record_dict):

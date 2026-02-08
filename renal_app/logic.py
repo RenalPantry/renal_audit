@@ -1,6 +1,6 @@
-# Logic for calculations and audit verdicts
+"""Logic for calculations and audit verdicts."""
 
-# Nutritional units
+from copy import deepcopy
 
 def to_float(val):
     """
@@ -24,15 +24,74 @@ def to_float(val):
         return 0.0
 
 units = {
-    "Sugar": "g",
-    "Sodium": "mg",
     "Protein": "g",
-    "Fiber": "g",
+    "Sodium": "mg",
     "Potassium": "mg",
+    "Phosphorus": "mg",
+    "Sugar": "g",
+    "Saturated Fat": "g",
+    "Trans Fat": "g",
     "Calories": "kcal",
-    "Total Fat": "g",
-    "Phosphorus": "mg"
 }
+
+NUTRIENTS_TO_DISPLAY = [
+    "Protein",
+    "Sodium",
+    "Potassium",
+    "Phosphorus",
+    "Sugar",
+    "Saturated Fat",
+    "Trans Fat",
+    "Calories",
+]
+
+CRITICAL_NUTRIENTS = [
+    "Protein",
+    "Sodium",
+    "Potassium",
+    "Phosphorus",
+    "Sugar",
+    "Saturated Fat",
+    "Trans Fat",
+]
+
+SAFETY_LIMITS = {
+    "Protein": 15,
+    "Sodium": 140,
+    "Potassium": 200,
+    "Phosphorus": 100,
+    "Sugar": 15,
+    "Saturated Fat": 5,
+    "Trans Fat": 0.1,
+}
+
+COMPARISON_TEMPLATE = {
+    "Protein": {"usda": None, "label": None},
+    "Sodium": {"usda": None, "label": None},
+    "Potassium": {"usda": None, "label": None},
+    "Phosphorus": {"usda": None, "label": None},
+    "Sugar": {"usda": None, "label": None},
+    "Saturated Fat": {"usda": None, "label": None},
+    "Trans Fat": {"usda": None, "label": None},
+    "Calories": {"usda": None, "label": None},
+}
+
+
+def init_comparison_data():
+    return deepcopy(COMPARISON_TEMPLATE)
+
+
+def update_comparison_data(comparison_data, label_vals=None, usda_nutrients=None):
+    if not comparison_data:
+        comparison_data = init_comparison_data()
+
+    for nutrient in comparison_data:
+        if label_vals:
+            comparison_data[nutrient]["label"] = label_vals.get(nutrient)
+        if usda_nutrients:
+            comparison_data[nutrient]["usda"] = usda_nutrients.get(nutrient)
+
+    return comparison_data
 
 def _coerce_number(value):
     if isinstance(value, (int, float)):
@@ -47,30 +106,15 @@ def calculate_delta(label_value, usda_value):
         return None
     return ((usda - label) / label) * 100
 
-def get_audit_verdict(data):
-    """Determine audit verdict based on data discrepancies"""
-    critical_nutrients = ["Sugar", "Sodium", "Phosphorus"]
-    for nutrient in critical_nutrients:
-        nutrient_data = data.get(nutrient, {"label": None, "usda": None})
-        delta = calculate_delta(nutrient_data.get("label"), nutrient_data.get("usda"))
-        if delta is not None and delta > 10:  # More than 10% increase is an alert
-            return "Alert", "red"
-    return "Verified", "green"
-
 def get_audit_details(data):
-    # threshold configuration
-    SAFETY_LIMITS = {"Sodium": 200, "Potassium": 200, "Sugar": 15}
-    
     report = {
-        "status": "Verified",
+        "status": "Renal Safe",
         "color": "green",
         "flags": [], # List of specific safety violations
         "discrepancies": [] # List of label vs usda mismatches
     }
 
-    critical_nutrients = ["Sodium", "Potassium", "Phosphorus", "Sugar"]
-
-    for nutrient in critical_nutrients:
+    for nutrient in CRITICAL_NUTRIENTS:
         nutrient_info = data.get(nutrient, {"label": None, "usda": None})
         l_val = to_float(nutrient_info.get("label"))
         u_val = to_float(nutrient_info.get("usda"))
@@ -79,16 +123,22 @@ def get_audit_details(data):
         # 1. Detail: Safety Limit Violation
         if limit and l_val > limit:
             excess = l_val - limit
-            report["flags"].append(f"⚠️ {nutrient}: {l_val}mg exceeds safe limit of {limit}mg (+{excess}mg)")
-            report["status"] = "High Risk"
+            report["flags"].append(f"⚠️ Label {nutrient}: {l_val}{units.get(nutrient, '')} exceeds safe limit of {limit}{units.get(nutrient, '')} (+{excess}{units.get(nutrient, '')})")
+            report["status"] = "High Renal Load"
+            report["color"] = "red"
+
+        if limit and u_val > limit:
+            excess = u_val - limit
+            report["flags"].append(f"⚠️ USDA{nutrient}: {u_val}{units.get(nutrient, '')} exceeds safe limit of {limit}{units.get(nutrient, '')} (+{excess}{units.get(nutrient, '')})")
+            report["status"] = "High Renal Load"
             report["color"] = "red"
 
         # 2. Detail: USDA Discrepancy
         delta = calculate_delta(l_val, u_val)
-        if delta and delta > 15:
+        if delta and delta > 20:
             report["discrepancies"].append(f"🔍 {nutrient}: Label says {l_val}, but USDA suggests {u_val}")
             if report["color"] != "red": # Don't overwrite red with yellow
-                report["status"] = "Accuracy Warning"
+                report["status"] = "Data Mismatch"
                 report["color"] = "yellow"
 
     return report
