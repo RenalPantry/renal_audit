@@ -23,7 +23,7 @@ def prepare_airtable_record(product, brand, serving_size, unit, usda_data=None, 
         "Brand": brand,        
         "Serving Size": serving_size,
         "Serving Unit": unit,
-        "FDC_ID": str(usda.get("fdcId")),
+        "FDC_ID": st.session_state.get("selected_fdc_id",{}),
 
         "Label Protein (g)": label.get("Protein"),
         "Label Sodium (mg)": label.get("Sodium"),
@@ -47,7 +47,7 @@ def prepare_airtable_record(product, brand, serving_size, unit, usda_data=None, 
         
         # Meta Data
         "Audit Colour": st.session_state.get("audit_report", {}).get("color"),
-        "Audit Result": f"{st.session_state.get('audit_report', {}).get('flags', '')}{st.session_state.get('ai_report', '')}",
+        "Audit Result": f"{st.session_state.get('audit_report', {}).get('flags', '')}{st.session_state.get('audit_report', {}).get('discrepancies', '')}{st.session_state.get('ai_report', '')}",
     }
     
     return record
