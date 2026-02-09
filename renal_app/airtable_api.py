@@ -23,7 +23,7 @@ def prepare_airtable_record(product, brand, serving_size, unit, usda_data=None, 
         "Brand": brand,        
         "Serving Size": serving_size,
         "Serving Unit": unit,
-        "FDC_ID": st.session_state.get("selected_fdc_id",{}),
+        "FDC_ID": str(st.session_state.get("selected_fdc_id",{})),
 
         "Label Protein (g)": label.get("Protein"),
         "Label Sodium (mg)": label.get("Sodium"),
