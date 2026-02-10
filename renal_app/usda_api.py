@@ -136,7 +136,7 @@ def display_and_select_usda_results(foods, search_query, radio_key="usda_product
         options=options,
         captions=captions,
         index=None,
-        key=radio_key
+        key=radio_key,
     )
     
     # Step 5: Store selection in session state
