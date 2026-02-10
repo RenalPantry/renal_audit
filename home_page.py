@@ -2,7 +2,7 @@ import streamlit as st
 
 def home_page():
     """Render the Home page with navigation buttons"""
-    st.title("Renal Audit System", anchor=False)
+    st.title("Renal Audit", anchor=False)
 
     st.markdown("")
 

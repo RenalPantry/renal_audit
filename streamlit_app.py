@@ -7,8 +7,8 @@ from tracking import inject_ga  # Import your new tracker
 def main():
     # 1. Inject the tracking code immediately
     inject_ga("G-Y1PEPBHRP0")
-    
-    """Main application logic"""
+
+    #Main application logic
 
     # Initialize session state for page navigation if not exists
     if 'page' not in st.session_state:
