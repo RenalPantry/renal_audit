@@ -80,7 +80,7 @@ def analyze_ingredients_for_triggers(label_in_text, usda_in_text):
     OUTPUT FORMAT:
     Return ONLY a JSON list of strings. Each string should be a short warning.
     Example: ["Contains Phosphoric Acid (Hidden Phosphorus)", "Contains High Fructose Corn Syrup (Gout Trigger)"]
-    If no triggers are found, return [].
+    If no triggers are found, return None.
     """
 
     try:
@@ -92,7 +92,7 @@ def analyze_ingredients_for_triggers(label_in_text, usda_in_text):
         
         if json_match:
             return json.loads(json_match.group())
-        return []
+        return None
 
     except Exception as e:
         st.error(f"Error calling Gemini API: {e}")
