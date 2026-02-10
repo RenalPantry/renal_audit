@@ -2,9 +2,9 @@ import streamlit as st
 from renal_app.styles import apply_custom_styles
 from home_page import home_page
 from audit_page import audit_page
-import streamlit_analytics
+import streamlit_analytics2
 
-with streamlit_analytics.track():
+with streamlit_analytics2.track(unsafe_password="bbbbbbbb"):
     def main():
         """Main application logic"""
 

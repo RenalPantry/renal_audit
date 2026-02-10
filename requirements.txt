@@ -4,4 +4,4 @@ requests
 rapidfuzz
 google-generativeai
 pyairtable
-streamlit_analytics
+streamlit-analytics2
